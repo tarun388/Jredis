@@ -19,6 +19,7 @@ public class Deserializer {
             case '*':
                 return deserializeArray(input);
             default:
+//                return deserializeError(String.format("Unsupported RESP type %c", respType));
                 throw new IllegalArgumentException(String.format("Unsupported RESP type %c", respType));
         }
     }

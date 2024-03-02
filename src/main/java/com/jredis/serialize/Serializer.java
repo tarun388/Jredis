@@ -38,4 +38,8 @@ public class Serializer {
         }
         return builder.toString();
     }
+
+    public String serializeError(String errorMessage) {
+        return "-ERROR " + errorMessage + "\r\n";
+    }
 }
