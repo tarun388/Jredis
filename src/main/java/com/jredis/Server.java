@@ -1,5 +1,6 @@
 package com.jredis;
 
+import com.jredis.db.Storage;
 import com.jredis.serialize.Deserializer;
 import com.jredis.serialize.Serializer;
 import lombok.extern.slf4j.Slf4j;
@@ -18,10 +19,12 @@ public class Server {
     private static final int PORT = 6379;
     private final Serializer serializer;
     private final Deserializer deserializer;
+    private Storage db;
 
     public Server() {
         this.serializer = new Serializer();
         this.deserializer = new Deserializer();
+        this.db = new Storage();
     }
 
     public void start() {
@@ -42,37 +45,37 @@ public class Server {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
              OutputStream outputStream = clientSocket.getOutputStream()) {
 
-            StringBuilder commandBuilder = new StringBuilder();
-            String request = reader.readLine();
-            log.debug("Received request: " + request);
-            int readRemaining = readItems(request + "\r\n");
-            commandBuilder.append(request).append("\r\n");
-
-            while (readRemaining > 0) {
-                request = reader.readLine();
-                log.debug("Received request: " + request);
-                commandBuilder.append(request).append("\r\n");
-                log.debug(String.valueOf(readRemaining));
-                readRemaining--;
+            while (clientSocket.isConnected()) {
+                String request = readCommand(reader);
+                String response = processRequest(request);
+                log.debug("Sending response: " + response);
+                outputStream.write(response.getBytes());
+                outputStream.flush();
             }
 
-            String response = processRequest(commandBuilder.toString());
-            log.debug("Sending response: " + response);
-            outputStream.write(response.getBytes());
-            outputStream.flush();
-
-            // ToDo
-            // Connection is closed after processing 1 command from clint
-            // redis-cli looks like still want to keep the connection open
-            // Read one set of command i.e. expect an array of bulk string
-            // process it
-            // go back to reading again
-            // keep doing this
-
         } catch (IOException e) {
-            log.error("Client abruptly terminated connection");
+            log.error("Client disconnected");
 //            e.printStackTrace();
+        } catch (IllegalArgumentException e) {
+            log.error(e.getMessage());
         }
+    }
+
+    private String readCommand(BufferedReader reader) throws IOException {
+        StringBuilder commandBuilder = new StringBuilder();
+        String request = reader.readLine();
+        log.debug("Received request: " + request);
+        int readRemaining = readItems(request + "\r\n");
+        commandBuilder.append(request).append("\r\n");
+
+        while (readRemaining > 0) {
+            request = reader.readLine();
+            log.debug("Received request: " + request);
+            commandBuilder.append(request).append("\r\n");
+            log.debug(String.valueOf(readRemaining));
+            readRemaining--;
+        }
+        return commandBuilder.toString();
     }
 
     private int readItems(String r) {
@@ -92,6 +95,8 @@ public class Server {
     // Only process
     // PING
     // ECHO MSG
+    // SET
+    // GET
     private String processRequest(String request) {
         log.debug(request);
         Object o = deserializer.deserialize(request);
@@ -105,12 +110,21 @@ public class Server {
 
             // PING
             if (Objects.equals(command, "PING")) {
-//                log.debug(serializer.serialize("PONG"));
                 return serializer.serialize("PONG");
             }
             // ECHO
             else if (Objects.equals(command, "ECHO")) {
                 return serializer.serialize((String) ((Object[]) o)[1]);
+            }
+            else if (Objects.equals(command, "SET")) {
+                String key = (String) ((Object[]) o)[1];
+                String value = (String) ((Object[]) o)[2];
+                db.set(key, value);
+                return serializer.serialize("OK");
+            }
+            else if (Objects.equals(command, "GET")) {
+                String key = (String) ((Object[]) o)[1];
+                return serializer.serialize(db.get(key));
             }
         }
         return serializer.serializeError("Command not supported");
