@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+//import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class Server {
@@ -30,9 +31,16 @@ public class Server {
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                 log.info("Connection established to : {}", clientSocket.getPort());
+
                 Thread clientConnection = new Thread(new ConnectionHandler(clientSocket, serializer, deserializer, db));
                 log.info("Thread created {}", clientConnection.getId());
+
                 clientConnection.start();
+
+//                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+//                    ConnectionHandler c = new ConnectionHandler(clientSocket, serializer, deserializer, db);
+//                    c.run();
+//                });
             }
 
         } catch (IOException e) {
