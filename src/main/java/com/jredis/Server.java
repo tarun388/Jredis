@@ -37,6 +37,7 @@ public class Server {
 
                 clientConnection.start();
 
+                // Uncomment below 4 lines to run asynchronously and comment out above three code lines to disable thread
 //                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
 //                    ConnectionHandler c = new ConnectionHandler(clientSocket, serializer, deserializer, db);
 //                    c.run();
