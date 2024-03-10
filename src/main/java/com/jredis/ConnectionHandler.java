@@ -1,6 +1,7 @@
 package com.jredis;
 
 import com.jredis.db.Storage;
+import com.jredis.db.Value;
 import com.jredis.serialize.Deserializer;
 import com.jredis.serialize.Serializer;
 import lombok.extern.slf4j.Slf4j;
@@ -108,9 +109,24 @@ public class ConnectionHandler implements Runnable{
                 return serializer.serialize((String) ((Object[]) o)[1]);
             }
             else if (Objects.equals(command, "SET")) {
+                // ToDo Move this blocks of code in another class
+                //  called Command.java
                 String key = (String) ((Object[]) o)[1];
                 String value = (String) ((Object[]) o)[2];
-                db.set(key, value);
+                Long expiryTime = Storage.INFINITE_EXPIRATION;
+
+                for (int i=3;i<((Object[]) o).length;i+=2) {
+                    String c = (String) ((Object[]) o)[i];
+                    String x = (String) ((Object[]) o)[i+1];
+                    if (c.equals("EX")) {
+                        expiryTime = System.currentTimeMillis() + Long.parseLong(x) * 1000L;
+                    }
+                    else {
+                        return serializer.serializeError("Invalid input");
+                    }
+                }
+
+                db.set(key, value, expiryTime);
                 return serializer.serialize("OK");
             }
             else if (Objects.equals(command, "GET")) {
