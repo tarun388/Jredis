@@ -149,6 +149,7 @@ public class ConnectionHandler implements Runnable{
             }
             else if (Objects.equals(command, "EXISTS")) {
                 String key = (String) ((Object[]) o)[1];
+                // ToDo Extend Storage class to support bool contains(key)
                 String value = db.get(key);
                 if (value == null) {
                     return serializer.serialize(0);
@@ -156,6 +157,10 @@ public class ConnectionHandler implements Runnable{
                 else {
                     return serializer.serialize(1);
                 }
+            }
+            else if (Objects.equals(command, "DEL")) {
+                String key = (String) ((Object[]) o)[1];
+                return serializer.serialize(db.remove(key));
             }
         }
         return serializer.serializeError("Command not supported");

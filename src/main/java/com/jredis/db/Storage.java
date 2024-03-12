@@ -32,4 +32,14 @@ public class Storage {
 
         return map.get(key).value();
     }
+
+    public int remove(String key) {
+        Value v = map.remove(key);
+        if (v == null) {
+            return 0;
+        }
+        else {
+            return 1;
+        }
+    }
 }

@@ -36,4 +36,20 @@ public class StorageTest {
         actual = db.get(key);
         assertNull(actual);
     }
+
+    @Test
+    public void testRemove() {
+        String key = "Hello";
+        String value = "World";
+        db.set(key, value, Storage.INFINITE_EXPIRATION);
+        int actual = db.remove(key);
+        assertEquals(1, actual);
+    }
+
+    @Test
+    public void testRemoveEmpty() {
+        String key = "Hello";
+        int actual = db.remove(key);
+        assertEquals(0, actual);
+    }
 }
