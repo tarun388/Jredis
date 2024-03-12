@@ -115,13 +115,23 @@ public class ConnectionHandler implements Runnable{
                 String value = (String) ((Object[]) o)[2];
                 Long expiryTime = Storage.INFINITE_EXPIRATION;
 
+                // ToDo Only allow either one
+                //  EX | PX | EXAT | PXAT
+                //  source: https://redis.io/commands/set/
                 for (int i=3;i<((Object[]) o).length;i+=2) {
                     String c = (String) ((Object[]) o)[i];
                     String x = (String) ((Object[]) o)[i+1];
                     if (c.equals("EX")) {
                         expiryTime = System.currentTimeMillis() + Long.parseLong(x) * 1000L;
                     }
-                    else {
+                    else if (c.equals("PX")) {
+                        expiryTime = System.currentTimeMillis() + Long.parseLong(x);
+                    }
+                    else if (c.equals("EXAT")) {
+                        expiryTime = Long.parseLong(x) * 1000;
+                    } else if (c.equals("PXAT")) {
+                        expiryTime = Long.parseLong(x);
+                    } else {
                         return serializer.serializeError("Invalid input");
                     }
                 }
