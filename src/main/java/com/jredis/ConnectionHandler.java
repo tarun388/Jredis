@@ -89,9 +89,13 @@ public class ConnectionHandler implements Runnable{
     // ECHO MSG
     // SET
     // GET
+    // EXISTS
     private String processRequest(String request) {
         log.debug(request);
         Object o = deserializer.deserialize(request);
+
+        // ToDo Input validation
+        //  Validate the commands
 
         // Server expects an array of bulk strings
         // *<length>\r\n$<len><msg>...
@@ -142,6 +146,16 @@ public class ConnectionHandler implements Runnable{
             else if (Objects.equals(command, "GET")) {
                 String key = (String) ((Object[]) o)[1];
                 return serializer.serialize(db.get(key));
+            }
+            else if (Objects.equals(command, "EXISTS")) {
+                String key = (String) ((Object[]) o)[1];
+                String value = db.get(key);
+                if (value == null) {
+                    return serializer.serialize(0);
+                }
+                else {
+                    return serializer.serialize(1);
+                }
             }
         }
         return serializer.serializeError("Command not supported");
