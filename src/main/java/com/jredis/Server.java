@@ -14,14 +14,10 @@ import java.net.Socket;
 public class Server {
     // Todo Accept port from user
     private static final int PORT = 6379;
-    private final Serializer serializer;
-    private final Deserializer deserializer;
-    private Storage db;
+    private final RESPRequestHandler requestHandler;
 
     public Server() {
-        this.serializer = new Serializer();
-        this.deserializer = new Deserializer();
-        this.db = new Storage();
+        this.requestHandler = new RESPRequestHandler(new Deserializer(), new Serializer(), new Storage());
     }
 
     public void start() {
@@ -32,7 +28,7 @@ public class Server {
                 Socket clientSocket = serverSocket.accept();
                 log.info("Connection established to : {}", clientSocket.getPort());
 
-                Thread clientConnection = new Thread(new ConnectionHandler(clientSocket, serializer, deserializer, db));
+                Thread clientConnection = new Thread(new ConnectionHandler(clientSocket, requestHandler));
                 log.info("Thread created {}", clientConnection.getId());
 
                 clientConnection.start();

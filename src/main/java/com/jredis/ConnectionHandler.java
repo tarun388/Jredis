@@ -16,15 +16,11 @@ import java.util.Objects;
 @Slf4j
 public class ConnectionHandler implements Runnable{
     private final Socket clientSocket;
-    private final Serializer serializer;
-    private final Deserializer deserializer;
-    private Storage db;
+    private final RESPRequestHandler requestHandler;
 
-    public ConnectionHandler(Socket clientSocket, Serializer serializer, Deserializer deserializer, Storage db) {
+    public ConnectionHandler(Socket clientSocket, RESPRequestHandler requestHandler) {
         this.clientSocket = clientSocket;
-        this.serializer = serializer;
-        this.deserializer = deserializer;
-        this.db = db;
+        this.requestHandler = requestHandler;
     }
 
     @Override
@@ -39,7 +35,7 @@ public class ConnectionHandler implements Runnable{
 
             while (clientSocket.isConnected()) {
                 String request = readCommand(reader);
-                String response = processRequest(request);
+                String response =requestHandler.processRequest(request);
                 log.debug("Sending response: " + response);
                 outputStream.write(response.getBytes());
                 outputStream.flush();
@@ -84,85 +80,5 @@ public class ConnectionHandler implements Runnable{
         }
     }
 
-    // Only process
-    // PING
-    // ECHO MSG
-    // SET
-    // GET
-    // EXISTS
-    private String processRequest(String request) {
-        log.debug(request);
-        Object o = deserializer.deserialize(request);
 
-        // ToDo Input validation
-        //  Validate the commands
-
-        // Server expects an array of bulk strings
-        // *<length>\r\n$<len><msg>...
-        if (o instanceof Object[]) {
-            String command = (String) ((Object[]) o)[0];
-
-            log.debug(String.format("Command : %s", command));
-
-            // PING
-            if (Objects.equals(command, "PING")) {
-                return serializer.serialize("PONG");
-            }
-            // ECHO
-            else if (Objects.equals(command, "ECHO")) {
-                return serializer.serialize((String) ((Object[]) o)[1]);
-            }
-            else if (Objects.equals(command, "SET")) {
-                // ToDo Move this blocks of code in another class
-                //  called Command.java
-                String key = (String) ((Object[]) o)[1];
-                String value = (String) ((Object[]) o)[2];
-                Long expiryTime = Storage.INFINITE_EXPIRATION;
-
-                // ToDo Only allow either one
-                //  EX | PX | EXAT | PXAT
-                //  source: https://redis.io/commands/set/
-                for (int i=3;i<((Object[]) o).length;i+=2) {
-                    String c = (String) ((Object[]) o)[i];
-                    String x = (String) ((Object[]) o)[i+1];
-                    if (c.equals("EX")) {
-                        expiryTime = System.currentTimeMillis() + Long.parseLong(x) * 1000L;
-                    }
-                    else if (c.equals("PX")) {
-                        expiryTime = System.currentTimeMillis() + Long.parseLong(x);
-                    }
-                    else if (c.equals("EXAT")) {
-                        expiryTime = Long.parseLong(x) * 1000;
-                    } else if (c.equals("PXAT")) {
-                        expiryTime = Long.parseLong(x);
-                    } else {
-                        return serializer.serializeError("Invalid input");
-                    }
-                }
-
-                db.set(key, value, expiryTime);
-                return serializer.serialize("OK");
-            }
-            else if (Objects.equals(command, "GET")) {
-                String key = (String) ((Object[]) o)[1];
-                return serializer.serialize(db.get(key));
-            }
-            else if (Objects.equals(command, "EXISTS")) {
-                String key = (String) ((Object[]) o)[1];
-                // ToDo Extend Storage class to support bool contains(key)
-                String value = db.get(key);
-                if (value == null) {
-                    return serializer.serialize(0);
-                }
-                else {
-                    return serializer.serialize(1);
-                }
-            }
-            else if (Objects.equals(command, "DEL")) {
-                String key = (String) ((Object[]) o)[1];
-                return serializer.serialize(db.remove(key));
-            }
-        }
-        return serializer.serializeError("Command not supported");
-    }
 }
